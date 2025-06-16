@@ -96,6 +96,7 @@ def crawl_all(progress_bar=None, status=None, count_box=None):
     categories = get_subcategories(soup)
     total_products = 0
     cat_count = len(categories)
+    file_list = []
     for idx, cat in enumerate(categories):
         if status:
             status.text(f"در حال استخراج دسته {idx+1} از {cat_count}: {cat['name']}")
@@ -109,12 +110,13 @@ def crawl_all(progress_bar=None, status=None, count_box=None):
                 "category_url": cat["url"],
                 "products": cat_products
             }, f, ensure_ascii=False, indent=2)
+        file_list.append(fname)
         # بروزرسانی پراگرس بار و تعداد محصولات
         if progress_bar:
             progress_bar.progress((idx+1)/cat_count)
         if count_box:
             count_box.info(f"تعداد محصولات استخراج‌شده تا این لحظه: {total_products}")
-    return total_products
+    return total_products, file_list
 
 # Streamlit UI
 st.set_page_config(page_title="Defrost Scraper", layout="wide")
@@ -125,8 +127,16 @@ if st.button("شروع استخراج محصولات!"):
     status = st.empty()
     count_box = st.empty()
     with st.spinner("در حال جمع‌آوری اطلاعات محصولات..."):
-        total_products = crawl_all(progress_bar, status, count_box)
+        total_products, file_list = crawl_all(progress_bar, status, count_box)
     st.success(f"استخراج کامل شد! مجموع محصولات: {total_products}")
-    st.info("فایل json هر دسته در پروژه ذخیره شد.")
+    st.info("برای دانلود هر دسته، روی دکمه مربوطه کلیک کنید:")
+    for fname in file_list:
+        with open(fname, "rb") as f:
+            st.download_button(
+                label=f"دانلود {fname}",
+                data=f,
+                file_name=fname,
+                mime="application/json"
+            )
 else:
     st.info("برای شروع استخراج، روی دکمه بالا کلیک کنید.") 
