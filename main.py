@@ -96,33 +96,67 @@ def crawl_and_stream_download(progress_bar=None, status=None, count_box=None):
     categories = get_subcategories(soup)
     total_products = 0
     cat_count = len(categories)
-    download_buttons = []
+    all_products = []
+    
+    # Create a container for download buttons
+    download_container = st.container()
+    
     for idx, cat in enumerate(categories):
         if status:
             status.text(f"در حال استخراج دسته {idx+1} از {cat_count}: {cat['name']}")
         cat_products = get_products_from_category(cat["url"])
         total_products += len(cat_products)
-        # ذخیره هر دسته در فایل جداگانه با نام اسلاگ دسته
+        
+        # Store category data
+        category_data = {
+            "category_name": cat["name"],
+            "category_url": cat["url"],
+            "products": cat_products
+        }
+        all_products.append(category_data)
+        
+        # Save individual category file
         fname = slugify(cat["name"]) + ".json"
         with open(fname, "w", encoding="utf-8") as f:
-            json.dump({
-                "category_name": cat["name"],
-                "category_url": cat["url"],
-                "products": cat_products
-            }, f, ensure_ascii=False, indent=2)
-        # بروزرسانی پراگرس بار و تعداد محصولات
+            json.dump(category_data, f, ensure_ascii=False, indent=2)
+            
+        # Update progress and count
         if progress_bar:
             progress_bar.progress((idx+1)/cat_count)
         if count_box:
             count_box.info(f"تعداد محصولات استخراج‌شده تا این لحظه: {total_products}")
-        # نمایش دکمه دانلود همان لحظه
-        with open(fname, "rb") as f:
+            
+        # Add download button to container
+        with download_container:
+            with open(fname, "rb") as f:
+                st.download_button(
+                    label=f"دانلود {fname}",
+                    data=f,
+                    file_name=fname,
+                    mime="application/json",
+                    key=f"download_{idx}"  # Unique key for each button
+                )
+    
+    # Save and provide combined download
+    combined_data = {
+        "total_products": total_products,
+        "categories": all_products
+    }
+    combined_filename = "all_products.json"
+    with open(combined_filename, "w", encoding="utf-8") as f:
+        json.dump(combined_data, f, ensure_ascii=False, indent=2)
+    
+    with download_container:
+        st.markdown("---")
+        with open(combined_filename, "rb") as f:
             st.download_button(
-                label=f"دانلود {fname}",
+                label="دانلود همه محصولات در یک فایل",
                 data=f,
-                file_name=fname,
-                mime="application/json"
+                file_name=combined_filename,
+                mime="application/json",
+                key="download_all"
             )
+    
     return total_products
 
 # Streamlit UI
